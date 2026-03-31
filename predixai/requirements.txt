@@ -1,0 +1,29 @@
+# Multi-agent Framework
+langchain
+langchain-openai
+langchain-anthropic
+langchain-groq
+langgraph
+
+# Prediction Market Platform Logic
+requests
+web3
+eth-account
+
+# Research Tools (Free)
+duckduckgo-search
+tavily-python
+beautifulsoup4
+
+# UI & Visualization
+streamlit
+pandas
+plotly
+
+# Security & Utils
+python-dotenv
+cryptography
+loguru
+pydantic
+pydantic-settings
+apscheduler
