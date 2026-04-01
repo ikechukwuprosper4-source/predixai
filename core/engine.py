@@ -9,9 +9,35 @@ class MarketEngine:
     A simple Constant Product Market Maker (CPMM) logic for Yes/No predictions.
     This manages the internal state of the PredixMarket platform.
     """
-    def __init__(self, data_file: str = "data/markets.json"):
+    def __init__(self, data_file: str = "data/markets.json", rpc_url: Optional[str] = None):
         self.data_file = data_file
+        self.rpc_url = rpc_url or os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
         self.markets = self._load_markets()
+        self.users = self._load_users()
+
+    def _load_users(self) -> Dict:
+        user_file = "data/users.json"
+        if os.path.exists(user_file):
+            with open(user_file, "r") as f:
+                return json.load(f)
+        return {}
+
+    def _save_users(self):
+        os.makedirs("data", exist_ok=True)
+        with open("data/users.json", "w") as f:
+            json.dump(self.users, f, indent=4)
+
+    def register_user(self, wallet_address: str):
+        """Registers or retrieves a user by wallet address."""
+        if wallet_address not in self.users:
+            self.users[wallet_address] = {
+                "address": wallet_address,
+                "joined_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "balance_sol": 0.0,
+                "portfolio": []
+            }
+            self._save_users()
+        return self.users[wallet_address]
 
     def _load_markets(self) -> Dict:
         if os.path.exists(self.data_file):

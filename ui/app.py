@@ -3,143 +3,193 @@ import pandas as pd
 import os
 import json
 import time
-import hmac
 import hashlib
 from datetime import datetime
 from core.engine import MarketEngine
 
-# --- SECURITY: BASIC AUTH (Optional for Beta) ---
-def check_password():
-    """Returns True if the user had the correct password."""
-    if "ACCESS_CODE" not in os.environ:
-        return True # Public if no code set
+# --- APP CONFIG & STYLING ---
+st.set_page_config(
+    page_title="PredixNaija | Predict & Earn on Solana",
+    layout="wide",
+    page_icon="🏗️",
+    initial_sidebar_state="collapsed"
+)
+
+# Kalshi-inspired Minimalist Styling
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
     
-    def password_entered():
-        if hmac.compare_digest(st.session_state["password"], os.environ["ACCESS_CODE"]):
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .stApp {
+        background-color: #FFFFFF;
+    }
+    
+    /* Header Styling */
+    .main-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid #F0F0F0;
+        margin-bottom: 2rem;
+    }
+    
+    .logo {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #000000;
+        text-decoration: none;
+    }
+    
+    /* Market Card Styling */
+    .market-card {
+        background: #FFFFFF;
+        border: 1px solid #E0E0E0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        margin-bottom: 1rem;
+    }
+    
+    .market-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    
+    .market-category {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #888888;
+        letter-spacing: 0.05rem;
+    }
+    
+    .market-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+        color: #000000;
+    }
+    
+    .price-container {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .price-btn {
+        flex: 1;
+        padding: 0.75rem;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .btn-yes { background-color: #E6F4EA; color: #1E8E3E; }
+    .btn-no { background-color: #FCE8E6; color: #D93025; }
+    
+    /* Wallet Badge */
+    .wallet-badge {
+        background: #F8F9FA;
+        border: 1px solid #E0E0E0;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    /* Hide default Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    </style>
+    """, unsafe_allow_html=True)
 
-    if "password_correct" not in st.session_state:
-        st.text_input("Enter Naija Access Code", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input("Enter Naija Access Code", type="password", on_change=password_entered, key="password")
-        st.error("😕 Access Code incorrect")
-        return False
-    return True
+# --- INITIALIZATION ---
+engine = MarketEngine()
 
-# --- UI CONFIG ---
-st.set_page_config(page_title="PredixNaija: The #1 Solana Market 🏟️🇳🇬", layout="wide", page_icon="🏟️")
+if "wallet_address" not in st.session_state:
+    st.session_state.wallet_address = None
 
-if check_password():
-    # Initialize Engine
-    engine = MarketEngine()
-    SOL_TO_NGN = 1500 * 22000.0 # Approx ₦33M/SOL
-
-    # Session State for User Account
-    if "wallet_sol" not in st.session_state:
-        st.session_state.wallet_sol = 0.0 # Start at 0 for real feel
-    if "predictions" not in st.session_state:
-        st.session_state.predictions = []
-
-    # --- SIDEBAR: USER HUB ---
-    with st.sidebar:
-        st.title("🏟️ PredixNaija")
-        st.image("https://img.icons8.com/nolan/128/nigeria.png", width=80)
+# --- AUTH LAYER (Wallet Connection Simulation) ---
+def connect_wallet():
+    with st.container():
+        st.markdown("<div style='text-align: center; padding: 100px 0;'>", unsafe_allow_html=True)
+        st.markdown("<h1>🏗️ PredixNaija</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #666;'>Predict on Nigeria's Future. Earn on Solana.</p>", unsafe_allow_html=True)
         
-        st.info("🚀 PHASE: DEVNET BETA")
-        
-        st.divider()
-        st.subheader("💳 My Solana Wallet")
-        st.metric("Balance", f"{st.session_state.wallet_sol:.4f} SOL", f"₦{(st.session_state.wallet_sol * SOL_TO_NGN):,.0f}")
-        
-        if st.button("🚰 Get Test SOL (Faucet)", use_container_width=True):
-            st.session_state.wallet_sol += 1.0
-            st.toast("1.0 Devnet SOL Added! 🚀")
-            time.sleep(0.5)
-            st.rerun()
+        wallet = st.text_input("Enter Solana Wallet Address to Connect", placeholder="e.g., 5v6N...x2Yz")
+        if st.button("Connect Phantom", use_container_width=True, type="primary"):
+            if len(wallet) > 30: # Basic validation
+                st.session_state.wallet_address = wallet
+                engine.register_user(wallet)
+                st.rerun()
+            else:
+                st.error("Please enter a valid Solana wallet address.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.divider()
-        st.subheader("👤 Account")
-        st.write(f"ID: `{hashlib.md5(b'user').hexdigest()[:8]}`")
-        st.caption("Verified Naija Predictor ✅")
+# --- MAIN APP INTERFACE ---
+if not st.session_state.wallet_address:
+    connect_wallet()
+else:
+    # Header
+    st.markdown(f"""
+        <div class='main-header'>
+            <div class='logo'>🏗️ PredixNaija</div>
+            <div class='wallet-badge'>
+                🏦 {st.session_state.wallet_address[:4]}...{st.session_state.wallet_address[-4:]} | 0.00 SOL
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-    # --- MAIN CONTENT ---
-    st.title("🏟️ PredixNaija Marketplace")
-    st.markdown("### Predict on Nigeria's Future. Earn on Solana. 🇳🇬⛓️")
+    # Search & Filter
+    c1, c2 = st.columns([3, 1])
+    search = c1.text_input("Search events", placeholder="Elections, Sports, Economy...", label_visibility="collapsed")
+    filter_cat = c2.selectbox("Category", ["All", "Politics", "Economy", "Sports", "Music"], label_visibility="collapsed")
 
-    # Metrics
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.metric("Total Markets", len(engine.markets))
-    with m2:
-        st.metric("24h Volume", "420.5 SOL")
-    with m3:
-        st.metric("Active Predictors", "1.2k")
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4 = st.tabs(["🔥 Hot Markets", "📊 My Portfolio", "🤖 AI News Feed", "📖 How to Earn"])
+    # Market Grid
+    markets = engine.markets
+    active_markets = [m for m in markets.values() if m["status"] == "OPEN"]
+    
+    if not active_markets:
+        st.info("The AI Curator is currently drafting new markets. Check back in 5 mins.")
+    else:
+        # Categorized Display
+        for m in active_markets:
+            if filter_cat != "All" and m['category'] != filter_cat:
+                continue
+                
+            prices = engine.get_price(m['id'])
+            
+            with st.container():
+                st.markdown(f"""
+                    <div class='market-card'>
+                        <div class='market-category'>{m['category']}</div>
+                        <div class='market-title'>{m['title']}</div>
+                        <div style='color: #666; font-size: 0.9rem;'>{m['description']}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Transaction Controls
+                cols = st.columns([1, 1, 1, 3])
+                with cols[0]:
+                    if st.button(f"Yes {int(prices['yes']*100)}¢", key=f"y_{m['id']}", use_container_width=True):
+                        st.toast(f"Opening order for 'YES' at {prices['yes']} SOL...")
+                with cols[1]:
+                    if st.button(f"No {int(prices['no']*100)}¢", key=f"n_{m['id']}", use_container_width=True):
+                        st.toast(f"Opening order for 'NO' at {prices['no']} SOL...")
+                with cols[2]:
+                    st.button("Details", key=f"d_{m['id']}", use_container_width=True)
 
-    with tab1:
-        st.header("Trending Markets")
-        markets = engine.markets
-        active_markets = [m for m in markets.values() if m["status"] == "OPEN"]
-        
-        if not active_markets:
-            st.warning("No active markets yet. AI Curator is generating...")
-        else:
-            for m in active_markets:
-                with st.expander(f"🇳🇬 {m['title']}", expanded=True):
-                    c1, c2 = st.columns([2, 1])
-                    with c1:
-                        st.write(m['description'])
-                        st.caption(f"End Date: {m['end_date']} | Category: {m['category']}")
-                    with c2:
-                        prices = engine.get_price(m['id'])
-                        bet_amt = st.number_input("Amount (SOL)", 0.01, 10.0, 0.1, key=f"bet_{m['id']}")
-                        
-                        b1, b2 = st.columns(2)
-                        if b1.button(f"YES ({prices['yes']} SOL)", use_container_width=True, type="primary", key=f"y_{m['id']}"):
-                            if st.session_state.wallet_sol >= bet_amt:
-                                engine.predict(m['id'], "YES", bet_amt, "user")
-                                st.session_state.wallet_sol -= bet_amt
-                                st.session_state.predictions.append({"market": m['title'], "side": "YES", "amt": bet_amt, "p": prices['yes']})
-                                st.success("Prediction confirmed!")
-                                time.sleep(1)
-                                st.rerun()
-                        if b2.button(f"NO ({prices['no']} SOL)", use_container_width=True, key=f"n_{m['id']}"):
-                            if st.session_state.wallet_sol >= bet_amt:
-                                engine.predict(m['id'], "NO", bet_amt, "user")
-                                st.session_state.wallet_sol -= bet_amt
-                                st.session_state.predictions.append({"market": m['title'], "side": "NO", "amt": bet_amt, "p": prices['no']})
-                                st.success("Prediction confirmed!")
-                                time.sleep(1)
-                                st.rerun()
-
-    with tab2:
-        st.header("My Positions")
-        if not st.session_state.predictions:
-            st.info("You haven't made any predictions yet. Go to 'Hot Markets' to start earning!")
-        else:
-            st.table(pd.DataFrame(st.session_state.predictions))
-
-    with tab3:
-        st.header("🇳🇬 AI News & Alpha")
-        st.info("Our AI Curator is scanning Nigerian news sources 24/7.")
-        if st.button("⚡ Refresh AI Alpha"):
-            with st.spinner("AI is analyzing Vanguard and Punch..."):
-                time.sleep(2)
-                st.success("Analysis Complete: 'Naira stabilization trends' detected. New market incoming.")
-
-    with tab4:
-        st.header("How It Works")
-        st.write("""
-        1. **Get SOL**: Get test SOL using the faucet in the sidebar.
-        2. **Pick a Market**: Predict on things you know (Politics, Sports, Music).
-        3. **Buy Shares**: Buy 'YES' if you think it will happen, 'NO' if you don't.
-        4. **Earn**: If you are right, your shares settle at 1 SOL each. Withdraw your profit!
-        """)
-
-    st.divider()
-    st.caption("© 2026 PredixNaija. Decentralized Prediction for the Giant of Africa.")
+    # Footer
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #BBB; font-size: 0.8rem;'>Built for the Giant of Africa on Solana Mainnet Beta.</p>", unsafe_allow_html=True)

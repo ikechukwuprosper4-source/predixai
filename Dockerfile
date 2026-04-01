@@ -26,9 +26,14 @@ COPY . .
 # Expose the port Streamlit runs on
 EXPOSE 8501
 
-# Define environment variables (should be overridden by docker-compose or -e)
+# Define environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+
+# Production Security Hardening
+RUN useradd -m appuser
+RUN chown -R appuser:appuser /app
+USER appuser
 
 # Command to run the dashboard
 CMD ["streamlit", "run", "ui/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
