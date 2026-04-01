@@ -6,7 +6,7 @@ import time
 import hmac
 import hashlib
 from datetime import datetime
-from predixai.core.engine import MarketEngine
+from core.engine import MarketEngine
 
 # --- SECURITY: BASIC AUTH (Optional for Beta) ---
 def check_password():
